@@ -1,0 +1,237 @@
+---
+title: "Open Ended Analysis"
+author: "Maya Doitch"
+date: "2024-06-02"
+categories: [code]
+---
+
+```{r setup}
+library(tidyverse)
+np <- read_csv("national_park_trails.csv")
+```
+
+# The Data {-}
+
+The dataset for this exam concerns hiking trails in America’s National Parks system. The data are taken from the AllTrails app, which allows users to input new trails and rate existing ones.
+
+Variables in the dataset are:
+
++ `trail_id`: ID number for the trail
++ `name`: name of the trail
++ `area_name`: National Park where the trial is located
++ `city_name`: city where the trail is located
++ `state_name`: state where the trail is located
++ `country_name`: country where the trail is located
++ `_geoloc`: latitude and longitude of the trail
++ `popularity`: how often the trail is used (score from 0 to 100)
++ `length`: distance covered by the trail (in meters)
++ `elevation_gain`: amount of uphill on the trail (in meters)
++ `difficulty_rating`: average user rating of trail difficulty
++ `route_type`: type of trail (loop, out and back, or point to point)
++ `visitor_usage`: (Honestly, I’m not sure what this one is.)
++ `avg_rating`: average visitor rating of the trail (1 to 5 stars)
++ `num_reviews`: total number of reviews for the trail
++ `features`: notable elements of the trail
++ `activities`: common uses for the trail
++ `units`: This variable is a lie -- all the lengths are in meters!
+
+# Part 2: Short Answer [50 points]
+
+1. (4 pts)
+
+```{r}
+np |> 
+  filter(avg_rating == 5) |> 
+  group_by(state_name) |>
+  summarize(num_trails = n()) |> 
+  select(state_name, num_trails) |> 
+  slice_max(n = 1, order_by = num_trails)
+
+```
+
+2. (5 pts)
+
+```{r}
+
+np |> 
+  filter(state_name == "Alaska" ) |> 
+  select(name, length) |> 
+  slice_max(n = 3, order_by = length)
+
+```
+
+3. (5 pts) 
+
+```{r}
+
+np |> 
+  filter(elevation_gain < 500) |> 
+  group_by(area_name) |> 
+  slice_max(n = 1, order_by = popularity) |> 
+  select(area_name, name, popularity)
+  
+```
+
+4. (5 pts) 
+
+```{r}
+np |> 
+  filter(str_detect(area_name, "Land|land")) |> 
+  count()
+```
+
+5. (5 pts)
+
+```{r}
+ clean <- np |> 
+  filter(num_reviews >= 15, 
+         area_name %in% c("Glacier National Park", "Great Smoky Mountains National Park"))|> 
+  select(difficulty_rating, avg_rating, area_name)
+
+
+  clean |> 
+  ggplot(aes
+         (x=difficulty_rating,
+          fill = factor(avg_rating))
+         )+
+   geom_bar(position = "fill", na.rm = TRUE, width = 1.5)+
+  facet_wrap(~ area_name, ncol = 3)+
+  scale_fill_brewer(palette = "green", name = "Avg. Quality", labels = c("3.5", "4", "4.5", "5"))+
+    scale_x_continuous(breaks = c(1, 3, 5, 7)) +
+    facet_wrap(area_name ~.)+
+    labs(
+      x = "Difficulty Level",
+      subtitle = "(For trails with at least 15 reviews)",
+      y = "",
+      title = "Relationship between Trail Difficulty and Quality"
+    )+ 
+    theme(plot.subtitle = element_text(size = 7))
+  
+```
+
+6. (10 pts)
+
+```{r}
+recommend_trails <- function(data, park_name, min_elev = 0, 
+                             max_elev = Inf, min_rating = 0, trl_type = NULL){
+  stopifnot(is.data.frame(data),
+            is.numeric(min_elev),
+            is.numeric(max_elev),
+            is.numeric(min_rating))
+
+  
+  recommended_trails <- data |>
+    filter(area_name == park_name,
+           elevation_gain >= min_elev,
+           elevation_gain <= max_elev,
+           avg_rating >= min_rating) 
+  
+  if (!missing(trl_type)) {
+    recommended_trails <- recommended_trails |>
+      filter(route_type %in% trl_type)
+}
+  
+  recommended_trails <- recommended_trails |>
+    select(name)
+  
+  return(recommended_trails)
+}
+```
+
+Include the following code to show your function works:
+
+```{r}
+np |> 
+  recommend_trails("Haleakala National Park", 
+                   min_elev = 1000, 
+                   min_rating = 4)
+```
+
+7. (10 pts) 
+
+```{r}
+
+map_dfr(.x = c("Sequoia National Park",
+               "Joshua Tree National Park",
+               "Lassen Volcanic National Park",
+               "Kings Canyon National Park",
+               "Pinnacles National Park",
+               "Death Valley National Park",
+               "Redwood National Park"),
+        ~recommend_trails(data = np,
+                          park_name = .x,
+                          min_elev = 1000,
+                          max_elev = 3000,
+                          min_rating = 4.5,
+                          trl_type = "loop"))
+
+```
+
+# Part 3: Statistical Modeling [25 points]
+
+The two oldest National Parks in the country are **Yosemite National Park** and **Yellowstone National Park**.
+
+```{r}
+old_np <- np |> 
+  filter(area_name %in% c("Yosemite National Park",
+                          "Yellowstone National Park"))
+```
+
+How different are these parks? Let’s find out!
+
+8. (5 pts) 
+
+```{r}
+old_np |>
+  group_by(area_name, route_type) |> 
+  summarize(average_length = mean(length, na.rm = TRUE)) %>%
+  pivot_wider(names_from = area_name, values_from = average_length)
+```
+Yosemite National Park has a longer trail length for each trail type, on average, than Yellowstone National Park does. Yosemite's average trail length for the loop trail type is almost double Yellowstone's.  
+
+
+9. 
+
+    a. (6 pts)
+
+```{r}
+old_np |> 
+  ggplot(aes(x = length, y = elevation_gain, color = area_name)) +
+  geom_point() +
+  theme_bw() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue")+
+  labs (x= "Length",
+        y = "Elevation gain",
+        color = "National Park",
+        title = "Linear Regression Models of Elevation Gain from Trail Length")
+
+```
+
+
+    b. (4 pts)
+
+```{r}
+yellowstone <- lm(elevation_gain ~length,
+                  data = subset(np, area_name == "Yellowstone National Park"))
+
+yosemite <- lm(elevation_gain ~length,
+                  data = subset(np, area_name == "Yosemite National Park"))
+
+```
+
+    c. (4 pts)
+
+```{r}
+library(broom)
+tidy(yellowstone)
+tidy(yosemite)
+```
+
+    d. (3 pts)
+
+The average steepness of a trail in Yellowstone is 0.0155 meters gained per meter covered. The average steepness of a trail in Yosemite is 0.0406 meters gained per meter covered. 
+
+    e. (3 pts)
+Trails in Yosemite national park tend to have a higher trail steepness than trails in Yellowstone. Since the coefficient is larger for trails in Yosemite (0.0406) than for trails in Yellowstone(0.0155), Yosemite trails have a steeper average elevation gain per meter climbed compared to Yellowstone trails. Also, in the graph above, the blue dots (Yosemite) are also higher than the red dots (Yellowstone). Therefore, the parks do tend to have different trail steepness. 
+
+

@@ -1,0 +1,20 @@
+---
+title: "Maya Doitch"
+image: ProfPic.jpg
+about:
+  template: jolla
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: www.linkedin.com/in/maya-doitch
+    - icon: github
+      text: Github
+      href: https://github.com/mdoitch04/MayaWebsite
+    - icon: Resume-MayaDoitch.pdf
+      text: Resume
+      href: Resume-MayaDoitch.pdf
+resources: 
+  - Resume-MayaDoitch.pdf
+---
+
+Education: California Polytechnic State University- B.S. Statistics

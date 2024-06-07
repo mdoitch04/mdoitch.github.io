@@ -1,0 +1,19 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Maya Doitch"
+  navbar:
+    left:
+      - href: projects.qmd 
+        text: Projects
+      - icon: github
+        href: https://github.com/mdoitch04/MayaWebsite
+format:
+  html:
+    theme: flatly
+    css: styles.css
+
+editor: source
+
